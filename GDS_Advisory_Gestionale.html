@@ -90,6 +90,25 @@ td.mc{color:var(--text);font-weight:500;}
 .ddcl{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:2px;}
 .ddcv{font-family:'DM Mono',monospace;font-size:12px;color:var(--text);}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:280px;gap:10px;color:var(--muted);text-align:center;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;flex-shrink:0;border-bottom:1px solid var(--b1);}
+.cal-nav-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:600;color:var(--text);}
+.cal-nav-btn{background:transparent;border:1px solid var(--b2);color:var(--t2);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:14px;font-family:'DM Sans',sans-serif;}
+.cal-nav-btn:hover{border-color:var(--gold);color:var(--text);}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--b1);flex:1;overflow-y:auto;}
+.cal-header{background:var(--s1);padding:6px;text-align:center;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.cal-day{background:var(--s1);padding:6px;min-height:90px;vertical-align:top;position:relative;}
+.cal-day.other-month{background:#0e0e0e;}
+.cal-day.today{background:#1a1814;}
+.cal-day-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px;}
+.cal-day.today .cal-day-num{color:var(--gold);font-weight:700;}
+.cal-pill{font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;border-radius:3px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;border:1px solid;}
+.cal-pill:hover{opacity:.8;}
+.date-popup{position:fixed;z-index:200;background:var(--s1);border:1px solid var(--gold);border-radius:8px;padding:12px;box-shadow:0 8px 24px #00000060;}
+.date-popup-title{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;}
+.date-popup input[type=date]{background:var(--s2);border:1px solid var(--b2);border-radius:5px;padding:6px 10px;color:var(--text);font-size:12px;outline:none;font-family:'DM Sans',sans-serif;width:100%;}
+.date-popup input[type=date]:focus{border-color:var(--gold);}
+.date-popup-btns{display:flex;gap:6px;margin-top:8px;}
+
 .hidden{display:none!important;}
 #importMsg{position:fixed;bottom:20px;right:20px;z-index:200;font-family:'DM Mono',monospace;font-size:12px;padding:10px 16px;border-radius:7px;display:none;}
 </style>
@@ -125,6 +144,7 @@ td.mc{color:var(--text);font-weight:500;}
     <button class="tab active" onclick="switchTab('table',this)">&#x1F4CB; Tabella</button>
     <button class="tab" onclick="switchTab('kanban',this)">&#x1F4CA; Kanban</button>
     <button class="tab" onclick="switchTab('eco',this)">&#x1F4B6; Economico</button>
+    <button class="tab" onclick="switchTab('calendar',this)">&#x1F4C5; Calendario</button>
   </div>
   <div class="fbar">
     <span class="flbl">Filtri</span>
@@ -137,7 +157,8 @@ td.mc{color:var(--text);font-weight:500;}
     <span id="fcount" class="fcount"></span>
     <span id="daFatturare" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green);margin-left:6px;display:none"></span>
   </div>
-  <div class="main" id="mainContent"></div>
+  <div id="calNav" class="cal-nav hidden"><button class="cal-nav-btn" onclick="changeMonth(-1)">&#x2190;</button><span id="calNavTitle" class="cal-nav-title"></span><button class="cal-nav-btn" onclick="changeMonth(1)">&#x2192;</button></div>
+<div class="main" id="mainContent"></div>
 </div>
 
 <div id="modalDetail" class="ov hidden">
@@ -183,6 +204,7 @@ td.mc{color:var(--text);font-weight:500;}
 </div>
 
 <div id="importMsg"></div>
+<div id="datePopup" class="date-popup hidden"><div class="date-popup-title" id="datePopupTitle"></div><input type="date" id="datePopupInput"/><div class="date-popup-btns"><button class="btn btn-gold btn-sm" onclick="saveDatePopup()">Salva</button><button class="btn btn-out btn-sm" onclick="closeDatePopup()">Annulla</button></div></div>
 
 <script>
 var API_URL="https://script.google.com/macros/s/AKfycbwwf8xAEg_11Su79RSNJGw2sdtQyIx2GXX6UbpMjtskm-6doFfGGfMnsqcml_nC2154ug/exec";
@@ -248,9 +270,77 @@ function saveForm(){var fields=document.getElementById("formFields");var inputs=
 function deletePratica(id){if(!confirm("Eliminare questa pratica?"))return;closeModal("modalDetail");closeModal("modalForm");setAndSave(pratiche.filter(function(p){return p.id!==id;}));}
 function handleCSV(input){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){var lines=e.target.result.split(/\r?\n/).filter(function(l){return l.trim();});if(lines.length<2){showMsg("\u26A0 Nessuna riga trovata.",false);return;}var sep=lines[0].indexOf(";")>=0?";":",";var hdrs=lines[0].split(sep).map(function(h){return h.trim().replace(/^"|"$/g,"");});var mapped=hdrs.map(function(h){var lo=h.toLowerCase();var keys=Object.keys(CSV_MAP);for(var i=0;i<keys.length;i++)if(lo.indexOf(keys[i])===0)return CSV_MAP[keys[i]];return null;});var imported=lines.slice(1).map(function(line){var cells=line.split(sep).map(function(c){return c.trim().replace(/^"|"$/g,"");});var p=Object.assign(emptyPratica(),{id:uid()});mapped.forEach(function(field,i){if(!field||cells[i]===undefined)return;if(field==="status")p[field]=normalizeStatus(cells[i]);else if(DATE_FIELDS.indexOf(field)>=0)p[field]=parseDate(cells[i]);else p[field]=cells[i];});return p;}).filter(function(p){return p.tematica||p.cliente;});var merged=pratiche.concat(imported);setAndSave(merged);showMsg("\u2713 "+imported.length+" pratiche importate. Totale: "+merged.length,true);};reader.readAsText(file,"UTF-8");input.value="";}
 function exportCSV(){var header=ALL_COLS.join(",");var rows=pratiche.map(function(p){return ALL_COLS.map(function(k){var v=String(p[k]||"").replace(/"/g,'""');return(v.indexOf(",")>=0||v.indexOf('"')>=0||v.indexOf("\n")>=0)?'"'+v+'"':v;}).join(",");});var csv=[header].concat(rows).join("\n");var today=new Date().toISOString().slice(0,10);var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="GDS_Advisory_"+today+".csv";document.body.appendChild(a);a.click();document.body.removeChild(a);}
-function switchTab(name,el){currentView=name;document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});el.classList.add("active");renderAll();}
+function switchTab(name,el){currentView=name;document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});el.classList.add("active");var cn=document.getElementById("calNav");if(name==="calendar"){renderCalendar();}else{cn.classList.add("hidden");renderAll();}}
 function closeModal(id){document.getElementById(id).classList.add("hidden");}
 function showMsg(text,ok){var el=document.getElementById("importMsg");el.textContent=text;el.style.display="block";el.style.background=ok?"#4caf7d15":"#e0706015";el.style.border="1px solid "+(ok?"#4caf7d33":"#e0706033");el.style.color=ok?"var(--green)":"var(--red)";setTimeout(function(){el.style.display="none";},3000);}
+
+var calYear=new Date().getFullYear();
+var calMonth=new Date().getMonth();
+var datePopupId=null;
+
+function changeMonth(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+
+function renderCalendar(){
+  var main=document.getElementById("mainContent");
+  var nav=document.getElementById("calNav");
+  nav.classList.remove("hidden");
+  var months=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  document.getElementById("calNavTitle").textContent=months[calMonth]+" "+calYear;
+  var active=["1_In corso","2_In attesa","3_Da fatturare"];
+  var filtered=getFiltered().filter(function(p){return p.scadenza&&active.indexOf(p.status)>=0;});
+  var byDate={};
+  filtered.forEach(function(p){if(byDate[p.scadenza])byDate[p.scadenza].push(p);else byDate[p.scadenza]=[p];});
+  var first=new Date(calYear,calMonth,1);
+  var startDay=first.getDay();if(startDay===0)startDay=7;startDay--;
+  var daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  var daysInPrev=new Date(calYear,calMonth,0).getDate();
+  var today=new Date();var todayStr=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
+  var days=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
+  var html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--b1);">';
+  days.forEach(function(d){html+='<div class="cal-header">'+d+'</div>';});
+  for(var i=0;i<startDay;i++){var pd=daysInPrev-startDay+1+i;html+='<div class="cal-day other-month"><div class="cal-day-num">'+pd+'</div></div>';}
+  for(var d=1;d<=daysInMonth;d++){
+    var dateStr=(calYear)+"-"+(String(calMonth+1).padStart(2,"0"))+"-"+(String(d).padStart(2,"0"));
+    var isToday=Date.UTC(calYear,calMonth,d)===todayStr;
+    html+='<div class="cal-day'+(isToday?" today":"")+'"><div class="cal-day-num">'+d+'</div>';
+    if(byDate[dateStr]){byDate[dateStr].forEach(function(p){var c=STATUS_CLR[p.status]||"#888";html+='<span class="cal-pill" style="color:'+c+';border-color:'+c+'44;background:'+c+'12" onclick="openDatePopup(''+p.id+'',event)" title="'+p.cliente+' - '+p.tematica+'">'+p.cliente+'</span>';});}
+    html+='</div>';
+  }
+  var totalCells=startDay+daysInMonth;var remaining=(7-totalCells%7)%7;
+  for(var i=1;i<=remaining;i++){html+='<div class="cal-day other-month"><div class="cal-day-num">'+i+'</div></div>';}
+  html+='</div>';
+  main.innerHTML=html;
+}
+
+function openDatePopup(id,event){
+  var p=pratiche.find(function(x){return x.id===id;});if(!p)return;
+  datePopupId=id;
+  document.getElementById("datePopupTitle").textContent=p.cliente+" - "+p.tematica.slice(0,30);
+  document.getElementById("datePopupInput").value=p.scadenza||"";
+  var popup=document.getElementById("datePopup");
+  popup.classList.remove("hidden");
+  var x=event.clientX,y=event.clientY;
+  if(x+200>window.innerWidth)x=window.innerWidth-220;
+  if(y+120>window.innerHeight)y=window.innerHeight-130;
+  popup.style.left=x+"px";popup.style.top=y+"px";
+  event.stopPropagation();
+}
+
+function closeDatePopup(){document.getElementById("datePopup").classList.add("hidden");datePopupId=null;}
+
+function saveDatePopup(){
+  if(!datePopupId)return;
+  var newDate=document.getElementById("datePopupInput").value;
+  var updated=pratiche.map(function(p){return p.id===datePopupId?Object.assign({},p,{scadenza:newDate}):p;});
+  closeDatePopup();
+  setAndSave(updated);
+}
+
+document.addEventListener("click",function(e){
+  var popup=document.getElementById("datePopup");
+  if(!popup.classList.contains("hidden")&&!popup.contains(e.target)){closeDatePopup();}
+});
+
 </script>
 </body>
 </html>
