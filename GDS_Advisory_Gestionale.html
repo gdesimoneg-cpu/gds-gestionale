@@ -237,7 +237,7 @@ td.mc{color:var(--text);font-weight:500;}
 var AT_TOKEN = localStorage.getItem("gds_at_token")||"";
 var AT_BASE  = localStorage.getItem("gds_at_base")||"";
 var AT_TABLE = localStorage.getItem("gds_at_table")||"";
-var AT_URL   = "";
+var AT_URL   = "https://gds-proxy.g-desimone-g.workers.dev";
 var STORAGE_KEY = "gds_at_v1";
 
 var STATUSES  = ["1_In corso","2_In attesa","3_Da fatturare","4_Chance persa","5_Chiuso"];
@@ -272,7 +272,7 @@ function scadLabel(iso){var d=daysUntil(iso);if(d===null)return{text:fmtDate(iso
 function setSyncState(s,m){var el=document.getElementById("syncBadge");el.className="sync-badge sync-"+s;el.textContent=m;}
 
 // ── AIRTABLE API ───────────────────────────────────────────
-function atHeaders(){return{"Authorization":"Bearer "+AT_TOKEN,"Content-Type":"application/json"};}
+function atHeaders(){return{"Content-Type":"application/json"};}
 
 function fetchAll(){
   setSyncState("loading","\u27F3 Caricamento...");
